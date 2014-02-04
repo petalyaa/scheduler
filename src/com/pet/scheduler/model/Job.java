@@ -1,6 +1,7 @@
 package com.pet.scheduler.model;
 
 import java.io.Serializable;
+import java.util.Date;
 
 import com.pet.scheduler.Executor;
 import com.pet.scheduler.Schedule;
@@ -24,6 +25,12 @@ public class Job implements Serializable {
 	private Schedule schedule;
 	
 	private Executor executor;
+	
+	private boolean isActive;
+	
+	private Date expiryDate;
+	
+	private Date startDate;
 	
 	public Job() {
 		setId(System.nanoTime());
@@ -83,6 +90,48 @@ public class Job implements Serializable {
 	 */
 	public void setExecutor(Executor executor) {
 		this.executor = executor;
+	}
+
+	/**
+	 * @return the isActive
+	 */
+	public boolean isActive() {
+		return isActive;
+	}
+
+	/**
+	 * @param isActive the isActive to set
+	 */
+	public void setActive(boolean isActive) {
+		this.isActive = isActive;
+	}
+
+	/**
+	 * @return the expiryDate
+	 */
+	public Date getExpiryDate() {
+		return expiryDate;
+	}
+
+	/**
+	 * @param expiryDate the expiryDate to set
+	 */
+	public void setExpiryDate(Date expiryDate) {
+		this.expiryDate = expiryDate;
+	}
+
+	/**
+	 * @return the startDate
+	 */
+	public Date getStartDate() {
+		return startDate;
+	}
+
+	/**
+	 * @param startDate the startDate to set
+	 */
+	public void setStartDate(Date startDate) {
+		this.startDate = startDate;
 	}
 
 }

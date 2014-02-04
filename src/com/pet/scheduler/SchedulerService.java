@@ -12,12 +12,17 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.apache.log4j.Logger;
+
+import com.pet.scheduler.exception.SchedulerException;
 import com.pet.scheduler.model.Job;
 import com.pet.scheduler.util.SchedulerConstants;
 
 /**
  */
 public class SchedulerService {
+	
+	private static final Logger logger = Logger.getLogger(SchedulerService.class);
 
 	private static SchedulerService INSTANCE;
 	
@@ -27,9 +32,13 @@ public class SchedulerService {
 	
 	private String dataPath;
 	
+	private boolean isServiceStarted;
+	
 	public static final SchedulerService getInstance() {
-		if(INSTANCE == null) 
+		if(INSTANCE == null)  {
+			logger.debug("SchedulerService is null, creating new instance.");
 			INSTANCE = new SchedulerService();
+		}
 		return INSTANCE;
 	}
 	
@@ -53,16 +62,19 @@ public class SchedulerService {
 	}
 	
 	public void addJob(Job job) {
+		logger.debug("Adding new job to scheduler service monitor. [startDate : " + job.getStartDate() + ", expiryDate : " + job.getExpiryDate() + "]");
 		jobListing.put(job.getId(), job);
 		writeJobFile(job);
 	}
 	
 	public void removeJob(long id) {
+		logger.debug("Removing job id " + id);
 		jobListing.remove(id);
 		deleteJobFile(id);
 	}
 	
 	public void updateJob(Job job) {
+		logger.debug("Updating job id " + job.getId());
 		removeJob(job.getId());
 		addJob(job);
 	}
@@ -76,11 +88,13 @@ public class SchedulerService {
 	}
 	
 	private synchronized void deleteJobFile(long id) {
+		logger.debug("Deleting job file " + id + SchedulerConstants.JOB_FILE_EXT);
 		File jobFile = new File(dataPath, id + SchedulerConstants.JOB_FILE_EXT);
 		jobFile.delete();
 	}
 	
 	private synchronized void writeJobFile(Job job) {
+		logger.debug("Writing job file for id : " + job.getId());
 		long id = job.getId();
 		String jobFileName = id + SchedulerConstants.JOB_FILE_EXT;
 		File jobFile = new File(dataPath, jobFileName);
@@ -147,42 +161,60 @@ public class SchedulerService {
 		return job;
 	}
 	
-	public void startService() {
-		// Prepare all the required data...
+	public void startService() throws SchedulerException {
+		if(isServiceStarted)
+			throw new SchedulerException("Failed to start service. Service already start.");
 		Runnable r = new Runnable() {
 			
 			@Override
 			public void run() {
+				logger.debug("Starting new scheduler service.");
+				isServiceStarted = true;
 				while(!isTerm) {
 					try {
-						System.err.println("Found " + jobListing.size() + " jobs");
+						logger.debug("Found " + jobListing.size() + " jobs");
 						for(long jobId : jobListing.keySet()) {
 							Job job = jobListing.get(jobId);
-							System.err.println("Processing job for  " + job.getName());
+							logger.debug("Processing job for  " + job.getName());
 							Schedule jobSchedule = job.getSchedule();
 							if(jobSchedule != null) {
 								if(jobSchedule.hasNextSchedule()) {
 									Date nextRunningTime = jobSchedule.getNextJobSchedule();
 									Timestamp currentTimeStamp = new Timestamp(System.currentTimeMillis());
-									if(nextRunningTime.before(currentTimeStamp) || nextRunningTime.equals(currentTimeStamp)) {
-										Executor executor = job.getExecutor();
-										if(executor != null) {
-											executor.execute();
+										if(job.isActive()) {
+											Date expiryDate = job.getExpiryDate();
+											Date startDate = job.getStartDate();
+											if(startDate == null || (startDate != null && startDate.before(new Date()))) {
+												if(expiryDate == null || (expiryDate != null && expiryDate.after(new Date()))) {
+													if(nextRunningTime.before(currentTimeStamp) || nextRunningTime.equals(currentTimeStamp)) {
+														Executor executor = job.getExecutor();
+														if(executor != null) {
+															executor.execute();
+														} else {
+															logger.debug("Job " + job.getName() + " is missing executor, so removing it.");
+															removeJob(jobId);
+														}
+														jobSchedule.signalJobComplete();
+														job.setSchedule(jobSchedule);
+														jobListing.put(jobId, job);
+														updateJob(job);
+													} else {
+														logger.debug("Not triggering it yet. Next running time is : " + nextRunningTime);
+													}
+												} else {
+													logger.debug("Job already expired. So not executing it.");
+												}
+											} else {
+												logger.debug("Job schedule in future. So not executing it [" + startDate + "]");
+											}
 										} else {
-											System.err.println("Job " + job.getName() + " is missing executor, so removing it.");
-											removeJob(jobId);
+											logger.debug("Job is inactive. So not executing it.");
 										}
-										jobSchedule.signalJobComplete();
-										job.setSchedule(jobSchedule);
-										jobListing.put(jobId, job);
-									} else {
-										System.err.println("Not triggering it yet. Next running time is : " + nextRunningTime);
-									}
 								} else {
 									removeJob(jobId);
 								}
 							} else {
-								System.err.println("Job " + job.getName() + " missing schedule, so removing it.");
+								logger.debug("Job " + job.getName() + " missing schedule, so removing it.");
 								removeJob(jobId);
 							}
 							

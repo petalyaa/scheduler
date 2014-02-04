@@ -1,6 +1,7 @@
 package com.pet.scheduler.test;
 
-import java.sql.Timestamp;
+import java.util.Calendar;
+import java.util.Date;
 
 import com.pet.scheduler.Executor;
 import com.pet.scheduler.Schedule;
@@ -8,7 +9,6 @@ import com.pet.scheduler.SchedulerService;
 import com.pet.scheduler.exception.SchedulerException;
 import com.pet.scheduler.model.Job;
 import com.pet.scheduler.schedule.cron.CronSchedule;
-import com.pet.scheduler.schedule.ots.OneTimeSchedule;
 
 /**
  * Class Description	: 
@@ -22,7 +22,11 @@ public class Test {
 	
 	public static void main(String[] args) {
 		SchedulerService service = SchedulerService.getInstance();
-		service.startService();
+		try {
+			service.startService();
+		} catch (SchedulerException e) {
+			e.printStackTrace();
+		}
 		
 //		int i = 0;
 //		int jobToTest = 1;
@@ -39,6 +43,15 @@ public class Test {
 //				
 //				Executor executor = new TestHelloExecutor(helloJob.getId());
 //				helloJob.setExecutor(executor);
+//				helloJob.setActive(true);
+//				
+//				Calendar cal = Calendar.getInstance();
+//				cal.setTime(new Date());
+//				cal.add(Calendar.MINUTE, 2);
+//				helloJob.setStartDate(cal.getTime());
+//				cal.add(Calendar.MINUTE, 2);
+//				helloJob.setExpiryDate(cal.getTime());
+//				
 //				service.addJob(helloJob);
 //				i++;
 //			} catch (InterruptedException e) {
